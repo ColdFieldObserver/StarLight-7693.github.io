@@ -12,6 +12,8 @@ export const ICONS = {
   moreVert: 'more_vert',
   darkMode: 'dark_mode',
   lightMode: 'light_mode',
+  /** 三态主题的「跟随系统」 */
+  autoMode: 'brightness_auto',
   info: 'info',
   home: 'home',
   build: 'build',
