@@ -10,10 +10,16 @@ import { useEffect, type RefObject } from 'react';
 //   2. 抽屉内左滑     → 面板跟着手指缩回去
 //
 // 为什么起手区不从 x=0 开始：
-//   全面屏的「返回」手势贴在屏幕最外侧，起手点太靠边会被系统吞掉，
-//   页面根本收不到 pointer 事件。所以留出 EDGE_START 的缓冲，
-//   判定区是 [EDGE_START, EDGE_END]，宽约 100px —— 比系统手势区大得多，
-//   用户不必精确对准边缘。
+//   全面屏的「返回」手势与浏览器的后退手势都贴在屏幕最外侧，起手点太靠边
+//   会被系统 / 浏览器吞掉，页面根本收不到 pointer 事件。所以留出 EDGE_START
+//   的缓冲。
+//
+// 为什么起手区一路铺到左半屏（EDGE_RATIO = 0.5）：
+//   原来只有 12–120px 那条约 100px 的窄带，用户得先「对准边缘」才能拉出
+//   抽屉；而系统手势区就在最外侧那十几像素，越往里越安全。既然越靠内越不会
+//   被系统抢走，就没必要把判定区收窄 —— 左半屏任意位置右滑都能开抽屉，
+//   不必精确对准。之所以只取一半而不是全屏：面板从左滑出，手势本身必须
+//   自左向右，右半屏起手的横滑更可能是误触（列表横向滚动、文本选择）。
 //
 // 跟手为什么要跟 WAAPI 抢控制权：
 //   MDUI 的开关不是 CSS transition，而是对 panel 调 element.animate()
@@ -29,10 +35,13 @@ import { useEffect, type RefObject } from 'react';
 /** 与 AppShell 的断点保持一致：>= 840px 抽屉常驻，不启用手势 */
 const NARROW_QUERY = '(max-width: 839.98px)';
 
-/** 最外侧留给系统返回手势，不参与判定 */
+/** 最外侧留给系统返回 / 浏览器后退手势，不参与判定 */
 const EDGE_START = 12;
-/** 边缘起手区的右边界 */
-const EDGE_END = 120;
+/**
+ * 起手区的右边界（占视口宽度的比例）：左半屏。
+ * 手势面板从左滑出，右半屏起手的横滑更容易是误触，故只取一半。
+ */
+const EDGE_RATIO = 0.5;
 /** 方向锁定前需要的最小位移 */
 const LOCK_DISTANCE = 10;
 /** 水平位移必须是垂直位移的多少倍，才算横滑 */
@@ -166,8 +175,9 @@ export function useDrawerSwipe(ref: RefObject<HTMLElement | null>): void {
         return;
       }
 
-      // 打开手势：起点必须落在「稍微离边」的那段带子里
-      if (event.clientX < EDGE_START || event.clientX > EDGE_END) return;
+      // 打开手势：起点落在左半屏即可（最外侧 EDGE_START 留给系统手势）
+      const edgeEnd = window.innerWidth * EDGE_RATIO;
+      if (event.clientX < EDGE_START || event.clientX > edgeEnd) return;
       drag = {
         phase: 'open',
         startX: event.clientX,
