@@ -1,0 +1,149 @@
+@use 'tokens' as *;
+
+// ============================================================
+// 侧栏导航
+// ------------------------------------------------------------
+// 抽屉本体（宽度、圆角、遮罩）由 MDUI 负责，这里只通过 ::part(panel)
+// 调宽度，以及画导航条目。全站 ::part 只在这一处使用。
+// ============================================================
+
+// 抽屉宽度对外暴露一份：滑动手势要在抽屉关着（host display:none、
+// 量不到实际宽度）的时候就知道面板有多宽，否则跟手的位移全是 0。
+:root {
+  --drawer-w: #{$drawer-w};
+}
+
+// 抽屉占满 layout 的高度：它被 MDUI 设成 position: absolute 且只给了
+// top/left，不给高度的话面板会随内容长高，超出部分被 :host 的
+// overflow: hidden 直接裁掉（没有滚动条，等于看不到底部条目）。
+mdui-navigation-drawer {
+  height: 100%;
+}
+
+// 窄屏让抽屉从顶栏下方开始
+// ------------------------------------------------------------
+// MDUI 在窄屏会给宿主加 [mobile]，其 shadow 内的样式是
+//   :host([mobile]){ top: 0 !important; bottom: 0 !important; ... }
+// 按 CSS Scoping 的级联规则，shadow 内的 !important 声明**赢过**外层的
+// !important，所以改 top 是死路（试过，计算值依旧是 0）。
+//
+// 换一条不冲突的路：不动 top，用 transform 整体下移，同时把高度减去顶栏。
+//   高度 748 + 下移 64 → 视觉上正好占满 64 → 视口底
+// 面板与遮罩都是宿主的子节点，会一起下移，顶栏就完全露出来了。
+@media (max-width: 839.98px) {
+  mdui-navigation-drawer {
+    // 桌面那条 height:100% 会跟 bottom:0 打架（top 优先，底部溢出被裁）
+    height: calc(100% - var(--app-bar-h, 64px));
+    transform: translateY(var(--app-bar-h, 64px));
+  }
+}
+
+mdui-navigation-drawer::part(panel) {
+  width: $drawer-w;
+  // 用 100% 而不是 100vw：100vw 把纵向滚动条也算进去，存在滚动条时
+  // 会比赛道宽出 10px，窄屏下正好能凑出一条横向滚动条
+  max-width: calc(100% - 56px); // 窄屏留一条缝，暗示可以点遮罩关闭
+  height: 100%;
+  // 侧栏自己滚：条目多于视口高度时在面板内滚动，
+  // 与正文的滚动互不影响（正文滚的是 mdui-layout-main）
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  // 把水平手势留给抽屉的滑动开关，垂直方向仍交给浏览器滚动
+  touch-action: pan-y;
+  border-radius: 0 $radius-l $radius-l 0;
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: $gap-xs;
+  padding: $gap-m 12px $gap-l;
+}
+
+.nav-title {
+  margin: $gap-m 0 $gap-s;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgb(var(--mdui-color-on-surface-variant, 90 90 90));
+}
+
+.nav-group + .nav-group {
+  margin-top: $gap-s;
+}
+
+.nav-subtitle {
+  margin: $gap-s 0 $gap-xs;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: rgb(var(--mdui-color-outline, 120 120 120));
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// 导航条目：圆角行 + 前置图标，选中态用 primary-container
+.nav-item {
+  position: relative; // 涟漪层的定位基准（mdui-ripple 是 absolute 铺满）
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: $radius-full;
+  font-size: 14px;
+  color: rgb(var(--mdui-color-on-surface-variant, 60 60 60));
+  text-decoration: none;
+  transition:
+    background-color $transition,
+    color $transition;
+
+  mdui-icon {
+    font-size: 20px;
+    color: rgb(var(--mdui-color-on-surface-variant, 60 60 60));
+    transition: color $transition;
+  }
+
+  &:hover {
+    background: rgba(var(--mdui-color-on-surface, 0 0 0), 0.06);
+    text-decoration: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--mdui-color-primary, 11 87 208));
+    outline-offset: 2px;
+  }
+
+  &.is-active {
+    background: rgb(var(--mdui-color-primary-container, 211 227 253));
+    color: rgb(var(--mdui-color-on-primary-container, 4 30 73));
+    font-weight: 600;
+
+    mdui-icon {
+      color: rgb(var(--mdui-color-on-primary-container, 4 30 73));
+    }
+
+    &:hover {
+      background: rgb(var(--mdui-color-primary-container, 211 227 253));
+    }
+  }
+}
+
+// 涟漪层
+// 组件未注册时它就是普通未知元素，用绝对定位压成零占位，
+// 免得在 flex 行里多出一段 gap；圆角继承行本身，水波才不会溢出圆角。
+.nav-item mdui-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}

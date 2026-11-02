@@ -1,0 +1,134 @@
+@use 'tokens' as *;
+
+// ============================================================
+// 外壳层
+// ------------------------------------------------------------
+// 顶栏 / 抽屉 / 主区的高度关系由 <mdui-layout> 负责，这里只做
+// 「内容宽度、留白、页脚、关于对话框的排版」。
+// ============================================================
+
+// ---- 滚动容器 ----
+// 布局高度锁死在视口内，页面滚动交给 <mdui-layout-main>（MDUI 自带
+// overflow: auto）。这样主区滚动时，顶栏与抽屉都留在原地不动，
+// 侧栏因此拥有自己的滚动条，而不是跟着正文一起滚走。
+//
+// 特异性说明：MDUI 内部是 :host([full-height]:not([full-height=false i]))
+// （0,2,0），只写 mdui-layout[full-height] 会被它压住，所以叠一个类名。
+// 高度用 dvh：移动端地址栏收起/展开时 100vh 会多出一截，页面就会整体抖。
+mdui-layout.app-layout[full-height] {
+  height: 100vh;
+  height: 100dvh;
+}
+
+// 顶栏高度（主区 padding-top、抽屉让位都读它）
+// 只是兜底值：AppShell 会在运行期量一次真实高度写回来，
+// 这样将来换 medium/large 变体也不会错位。
+:root {
+  --app-bar-h: 64px;
+}
+
+// 顶栏吸顶
+// MDUI 会把 layout 的每个 item 设成 position: absolute 并钉在 layout 顶部，
+// 而 layout 的高度锁死 100dvh、滚动只发生在主区，所以顶栏本来就不会随内容走。
+// 这里只补 z-index：主区内容与抽屉遮罩之间，顶栏要压住前者。
+mdui-top-app-bar.app-bar {
+  --z-index: 5;
+}
+
+// 顶栏控件之间的弹性空隙（官方示例用的是内联 flex-grow，这里收成类名）
+.app-bar-spacer {
+  flex: 1 1 auto;
+}
+
+// 主区：flex 子项，必须允许收缩（min-height: 0），否则内容会被撑高、
+// 由外层滚动，上面那套「主区独立滚动」就失效了
+.app-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+// 本身不滚：MDUI 的 :host 是 overflow: auto，这里压成 hidden，
+// 让滚动落到内层 .app-scroll（顶栏高度以下的区域）。
+// 叠一层元素名提高特异性，避免和 shadow 里的 :host 打成平手。
+mdui-layout-main.app-main {
+  overflow: hidden;
+}
+
+// 真正的滚动容器
+// 它位于 mdui-layout-main 的 padding-top 之内，因此滚动条从顶栏下边缘开始，
+// 不会被 position: absolute 的顶栏切掉一截。
+.app-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.app-content {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: $content-max;
+  margin: 0 auto;
+  padding: $gap-l $content-pad $gap-xl;
+
+  @media (max-width: $bp-sm) {
+    padding: $gap-m $content-pad-sm $gap-xl;
+  }
+}
+
+// 页脚
+.site-footer {
+  width: 100%;
+  max-width: $content-max;
+  margin: 0 auto;
+  padding: $gap-m $content-pad $gap-l;
+  border-top: 1px solid rgb(var(--mdui-color-outline-variant, 220 220 220));
+  font-size: 13px;
+  color: rgb(var(--mdui-color-on-surface-variant, 80 80 80));
+
+  @media (max-width: $bp-sm) {
+    padding: $gap-m $content-pad-sm $gap-l;
+  }
+}
+
+.site-footer-line {
+  margin: 0;
+  line-height: 1.8;
+
+  &.is-muted {
+    opacity: 0.72;
+  }
+}
+
+// 「关于」对话框内容
+.about-body {
+  padding-top: $gap-s;
+}
+
+.about-list {
+  display: grid;
+  gap: $gap-s;
+  margin: 0;
+
+  > div {
+    display: grid;
+    grid-template-columns: 5.5em 1fr;
+    gap: $gap-s;
+    align-items: baseline;
+  }
+
+  dt {
+    font-size: 13px;
+    color: rgb(var(--mdui-color-on-surface-variant, 90 90 90));
+  }
+
+  dd {
+    margin: 0;
+    font-size: 14px;
+    color: rgb(var(--mdui-color-on-surface, 0 0 0));
+    word-break: break-all;
+  }
+}

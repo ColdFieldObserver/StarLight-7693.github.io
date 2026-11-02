@@ -1,0 +1,94 @@
+@use 'tokens' as *;
+
+// ============================================================
+// 基础层
+// ------------------------------------------------------------
+// MDUI 已经在 :root / .mdui-theme-* 上设了 color 与 background-color，
+// 这里只补它不管的部分：盒模型、字体栈、链接色、选中色、滚动条、焦点环。
+// ============================================================
+
+// MDUI 全局样式里没有任何 box-sizing 规则（组件各自在 shadow DOM 内自理），
+// 所以这里是唯一一处设定。缺了它，.app-content / .site-footer 的
+// 「width: 100% + 左右 padding」会按 content-box 计算成 100% + 48px，
+// 在首页与工具页直接撑出横向滚动条。
+// 只影响 light DOM，MDUI 组件内部的盒模型不受影响。
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  height: 100%;
+}
+
+// 字体栈（与冷域观者站保持同一套）
+// UI：HarmonyOS Sans SC（jsDelivr 分片 woff2，见 _fonts.scss），
+//     后面的 MiSans / PingFang / 雅黑 是字体没到或加载失败时的接力。
+// 代码：Cascadia Code，末尾挂中文无衬线——否则代码块里的中文会掉回宋体。
+:root {
+  --font-ui:
+    'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui,
+    -apple-system, Roboto, sans-serif;
+  --font-code:
+    'Cascadia Code', 'Consolas', 'Menlo', 'Microsoft YaHei UI', 'PingFang SC', 'HarmonyOS Sans SC',
+    'Microsoft YaHei', monospace;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// 颜色统一走 MDUI 令牌；第二个参数是兜底值，令牌缺失时不至于变成透明
+a {
+  color: rgb(var(--mdui-color-primary, 11 87 208));
+  text-decoration: none;
+  transition: color $transition;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--mdui-color-primary, 11 87 208));
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+::selection {
+  background: rgba(var(--mdui-color-primary, 11 87 208), 0.22);
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--mdui-color-outline-variant, 200 200 200));
+  border: 2px solid transparent;
+  border-radius: $radius-full;
+  background-clip: content-box;
+}
+
+// 正文里的行内代码（工具说明、结果提示里会用到）
+code {
+  padding: 0.1em 0.35em;
+  font-family: var(--font-code);
+  font-size: 0.9em;
+  border-radius: 4px;
+  background: rgba(var(--mdui-color-on-surface, 0 0 0), 0.06);
+}
