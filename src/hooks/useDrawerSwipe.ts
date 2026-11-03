@@ -46,25 +46,46 @@ const EDGE_RATIO = 0.5;
 const LOCK_DISTANCE = 10;
 /** 水平位移必须是垂直位移的多少倍，才算横滑 */
 const ANGLE_RATIO = 1.2;
-/** 松手时判定为「继续」的位移比例（占面板宽度） */
-const DISTANCE_RATIO = 0.35;
+/**
+ * 松手时判定为「继续」的位移比例（占面板宽度）。
+ * 原来 0.35，抽屉宽 272 就要拖出 95px 才算数，手机上很难一次拖够；
+ * 0.25（≈68px）兼顾「别太容易误开」与「一次就能拉开」。
+ */
+const DISTANCE_RATIO = 0.25;
 /** 快速轻扫也要有这点位移打底，否则指尖一抖就把抽屉甩走 */
-const FLING_MIN_RATIO = 0.15;
-/** 快速轻扫的判定速度（px/ms） */
-const FLING_VELOCITY = 0.5;
+const FLING_MIN_RATIO = 0.08;
+/**
+ * 快速轻扫的判定速度（px/ms）。0.5 太苛刻：正常甩动大约 0.3–0.8，
+ * 取 0.3 才能让「快速一划」稳定生效。
+ */
+const FLING_VELOCITY = 0.3;
+/**
+ * 计算甩动速度时只看最后这一小段时间（ms）。
+ *
+ * 不能用整段手势的平均速度：用户经常是「拖到一半停一下再松手」，
+ * 平均速度被那次停顿稀释成 0，轻扫判据就失效了 —— 表现就是「怎么划都
+ * 弹回去」。取最后一个窗口的速度才符合手感。
+ */
+const VELOCITY_WINDOW = 120;
 /** 松手后的收尾动画时长 */
 const SETTLE_MS = 200;
 
 type Phase = 'open' | 'close';
 
+interface TrailPoint {
+  x: number;
+  t: number;
+}
+
 interface Drag {
   phase: Phase;
   startX: number;
   startY: number;
-  startTime: number;
   width: number;
   active: boolean;
   lastX: number;
+  /** 最近 VELOCITY_WINDOW 内的采样点，用来算「松手瞬间」的速度 */
+  trail: TrailPoint[];
   /** 当前应该应用的位移，供接管循环反复写回 */
   offset: number;
 }
@@ -166,11 +187,11 @@ export function useDrawerSwipe(ref: RefObject<HTMLElement | null>): void {
           phase: 'close',
           startX: event.clientX,
           startY: event.clientY,
-          startTime: performance.now(),
           width,
           active: false,
           lastX: event.clientX,
-          offset: -width,
+          trail: [{ x: event.clientX, t: performance.now() }],
+          offset: 0,
         };
         return;
       }
@@ -182,10 +203,10 @@ export function useDrawerSwipe(ref: RefObject<HTMLElement | null>): void {
         phase: 'open',
         startX: event.clientX,
         startY: event.clientY,
-        startTime: performance.now(),
         width,
         active: false,
         lastX: event.clientX,
+        trail: [{ x: event.clientX, t: performance.now() }],
         offset: -width,
       };
     };
@@ -230,11 +251,14 @@ export function useDrawerSwipe(ref: RefObject<HTMLElement | null>): void {
 
         drag.active = true;
         if (drag.phase === 'open') {
-          // 让面板先出现（host 默认 display:none），然后开始接管
+          // 让面板先出现（host 默认 display:none），然后立刻接管
           drawer.open = true;
         }
         // 两种方向都启动接管循环：立即生效，并在后续帧里持续压住 MDUI 的动画
         requestAnimationFrame(holdPanel);
+        // 同一个任务里先钉一次：MDUI 的入场动画在 waitForElement 之后才排帧，
+        // 不先钉住的话第一帧会看到面板「嗖」地弹到全开，观感像闪一下
+        stopAnimations(getPanel(drawer));
       }
 
       const panel = getPanel(drawer);
@@ -244,9 +268,40 @@ export function useDrawerSwipe(ref: RefObject<HTMLElement | null>): void {
         drag.phase === 'open' ? clamp(-drag.width + dx, -drag.width, 0) : clamp(dx, -drag.width, 0);
 
       drag.offset = offset;
+      panel.style.transition = 'none';
       panel.style.transform = `translateX(${offset}px)`;
       drag.lastX = event.clientX;
+
+      // 只保留最近 VELOCITY_WINDOW 内的采样，用来算松手瞬间的速度
+      const now = performance.now();
+      drag.trail.push({ x: event.clientX, t: now });
+      while (drag.trail.length > 2 && now - (drag.trail[0]?.t ?? now) > VELOCITY_WINDOW) {
+        drag.trail.shift();
+      }
     };
+
+    /** 松手瞬间的速度（px/ms），只看最后 VELOCITY_WINDOW 的采样 */
+    function releaseVelocity(drag: Drag): number {
+      const first = drag.trail[0];
+      const last = drag.trail[drag.trail.length - 1];
+      if (!first || !last) return 0;
+      const dt = last.t - first.t;
+      return dt > 0 ? (last.x - first.x) / dt : 0;
+    }
+
+    /**
+     * 决定这次手势是「继续」还是「回弹」。
+     *
+     * @param travelled 净位移；正=向右（开抽屉）、负=向左（关抽屉）
+     */
+    function shouldCommit(current: Drag, travelled: number): boolean {
+      const passed = Math.abs(travelled) > current.width * DISTANCE_RATIO;
+      const flung =
+        Math.abs(travelled) > current.width * FLING_MIN_RATIO &&
+        Math.abs(releaseVelocity(current)) > FLING_VELOCITY;
+      const forward = current.phase === 'open' ? travelled > 0 : travelled < 0;
+      return forward && (passed || flung);
+    }
 
     const onPointerUp = () => {
       if (!drag) return;
@@ -255,28 +310,27 @@ export function useDrawerSwipe(ref: RefObject<HTMLElement | null>): void {
 
       if (!current.active) return;
 
-      // 平均速度：短距离快速甩动也算数（拖了很久才松手则速度自然低，不误判）
-      const duration = performance.now() - current.startTime;
       const travelled = current.lastX - current.startX;
-      const velocity = duration > 0 ? travelled / duration : 0;
-
-      const passed = Math.abs(travelled) > current.width * DISTANCE_RATIO;
-      const flung =
-        Math.abs(travelled) > current.width * FLING_MIN_RATIO &&
-        Math.abs(velocity) > FLING_VELOCITY;
-
-      if (current.phase === 'open') {
-        settle(travelled > 0 && (passed || flung));
-      } else {
-        settle(!(travelled < 0 && (passed || flung)));
-      }
+      const commit = shouldCommit(current, travelled);
+      settle(current.phase === 'open' ? commit : !commit);
     };
 
+    /**
+     * 手势被系统打断（浏览器接管了触摸、来电、通知下拉等）。
+     *
+     * 原来一律当作「取消」→ 直接回弹，于是拖到一半被系统抢走时抽屉
+     * 「突然消失」。现在按已经拖出的距离决定，和松手走同一套判据。
+     */
     const onCancel = () => {
       if (!drag) return;
       const current = drag;
       drag = null;
-      if (current.active) settle(current.phase !== 'open');
+      if (!current.active) return;
+
+      // offset 是当前实际位移：open 相位的位移 = offset + width
+      const travelled = current.phase === 'open' ? current.offset + current.width : current.offset;
+      const commit = shouldCommit(current, travelled);
+      settle(current.phase === 'open' ? commit : !commit);
     };
 
     /** 关闭动画结束：把被我们藏起来的面板恢复原样 */

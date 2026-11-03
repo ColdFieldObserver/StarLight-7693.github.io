@@ -85,6 +85,10 @@ mdui-layout-main.app-main {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
+  // 只认纵向拖动与缩放：本站没有横向滚动，而抽屉的滑出手势要自己接管横向。
+  // 不写这条的话，浏览器会把横向拖动当成「pan」，中途发 pointercancel
+  // 把我们的手势掐断 —— 表现就是拖到一半抽屉突然弹回去。
+  touch-action: pan-y pinch-zoom;
 }
 
 .app-content {
