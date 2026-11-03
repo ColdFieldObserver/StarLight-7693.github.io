@@ -11,6 +11,11 @@
 - 视觉语言由 MDUI（Material Design 3）决定：圆角、阴影、状态层都用组件自带能力。**本项目没有 Tailwind**，不要引入工具类写法或第二个 UI 框架。
 - **配色是蓝主色 + 冷灰中性色**（`_palette.scss` 静态覆写）。中性色不能只留 MDUI 默认值：它那套 surface 是由默认紫主色推导的，只改 primary 会出现「按钮蓝了、整页还是紫的」。改配色时 primary / surface / on-surface / outline / secondary / tertiary **要一起改**，否则换个组件就冒紫。
 - 抽屉手势的起手区是**左半屏**（`EDGE_START = 12` 到 `EDGE_RATIO = 0.5`）：最外侧留给系统返回 / 浏览器后退手势，右半屏起手的横滑多是误触。**不要**把它收窄成贴边窄带，也不要铺满全宽。
+- 触屏的点按反馈**只由 MDUI 提供**，两处开关不能改回去：
+  - `_base.scss` 里 `html { -webkit-tap-highlight-color: transparent }` —— Chrome / Android 的默认点击高亮是一层半透明蓝，会盖在元素上（还跟着 `border-radius` 变成圆角药丸），与 MDUI 涟漪叠起来就是「点完泛一层蓝」；
+  - `.nav-item` / `mdui-menu` 上 `--mdui-comp-ripple-state-layer-color: var(--mdui-color-on-surface)` —— 该变量默认取**主色**，状态层压在浅色行上同样泛蓝。涟漪本身保留，只把颜色换成中性前景色。
+  - 同理，`.nav-item` 的 `:hover` 底色只写在 `@media (hover: hover)` 里：触屏点一下会留下 sticky `:hover`，看起来像「点完还盖着一层」。
+  - **`a` 的下划线也只在 `@media (hover: hover)` 里给**：触屏残留的 `:hover` 会让导航条目莫名其妙带上下划线（看起来像被选中）。`.nav-item` 另外显式写了 `text-decoration: none` 兜底。
 - 悬浮 / 按下反馈只用 MDUI 的状态层（`--mdui-state-*`）与已有的描边、阴影，**不要**新增大位移、旋转、缩放入场等夸张效果。
 - 动效缓动曲线取自 `_tokens.scss`，**不要**在组件里散写 `cubic-bezier`。
 
@@ -25,6 +30,7 @@
 ### 禁止注入式增强（硬性规则）
 
 - **禁止在 `public/` 下放 JS / CSS，再通过 `app/layout.tsx` 的 `<link>` / `<script>` 注入来做功能增强。** 需要交互就写 React 组件 / `src/hooks/`，需要样式就写进 `src/styles/` 的对应分片。`public/` 只放原样发给浏览器的静态资源：图片（`images/favicon.svg`、`images/friendlinkicon/*`）与搜索引擎验证文件（`BingSiteAuth.xml`，必须留在站点根目录，**不要改名或移进子目录**）。
+- 弹出层（`mdui-menu`）的底色在 `_layout.scss` 里显式声明了一次，**不要删**：MDUI 把它写在 `:host` 的 `rgb(var(--mdui-color-surface-container))` 里，令牌一旦解析不出来整条声明就失效、底色退回 `transparent`（观感是「菜单半透明，透出背后的页面」）。作者样式对宿主的优先级高于 `:host`，所以外层补的这一条带兜底色、能兜住这种情况。
 - 为什么（同作者 PidanUI 官网的返工教训：先做了一套 `public/custom/{custom.css,custom.js}` 注入层，随后整层拆回主站代码）：
   - **客户端路由不接管**：注入脚本只在首次加载扫一遍 DOM，站内跳转后新增的页面不会被处理。
   - **绕开样式分层**：`public/` 里的 CSS 不参与 `globals.scss` 的 `@use` 顺序，只能靠 `!important` 与特异性堆叠去压既有规则。
