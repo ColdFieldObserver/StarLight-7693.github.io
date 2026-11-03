@@ -32,8 +32,10 @@ export default function TopBar({ drawerOpen, onToggleMenu, onAbout }: TopBarProp
       className="app-bar"
       id="site-bar"
     >
+      {/* 图标固定用汉堡：抽屉展开后按钮位置不变，图标忽然变成 ✕ 会让人以为那是
+          「关闭按钮」而不是「切换导航」；展开状态由 aria-expanded 表达。 */}
       <mdui-button-icon
-        icon={drawerOpen ? ICONS.close : ICONS.menu}
+        icon={ICONS.menu}
         aria-label={drawerOpen ? '收起导航' : '展开导航'}
         aria-expanded={drawerOpen}
         aria-controls="site-nav"

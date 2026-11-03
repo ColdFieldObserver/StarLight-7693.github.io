@@ -23,9 +23,10 @@
 
 .tool-field {
   width: 100%;
-  // 输入内容多是 Base64 / \uXXXX / 时间戳这类串，等宽更好对位；
-  // MDUI 的 textarea 是 font-family: inherit，所以这里设了就能传进去
-  font-family: var(--font-code);
+  // 输入内容与正文用同一套字体（--font-ui）：等宽字体在看中文与 emoji 时
+  // 行高与字重都和全站不一致，Base64 / 时间戳这类串用 UI 字体也完全读得清。
+  // MDUI 的 textarea 是 font-family: inherit，所以这里设了就能传进去。
+  font-family: var(--font-ui);
 }
 
 .tool-actions {
@@ -63,7 +64,8 @@
   margin: 0;
   padding: $gap-m;
   overflow: auto;
-  font-family: var(--font-code);
+  // 与输入框、正文统一用 --font-ui（见 .tool-field 的说明）
+  font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.7;
   white-space: pre-wrap;
