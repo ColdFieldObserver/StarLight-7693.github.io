@@ -30,14 +30,34 @@ mdui-layout.app-layout[full-height] {
 // 顶栏吸顶
 // MDUI 会把 layout 的每个 item 设成 position: absolute 并钉在 layout 顶部，
 // 而 layout 的高度锁死 100dvh、滚动只发生在主区，所以顶栏本来就不会随内容走。
-// 这里只补 z-index：主区内容与抽屉遮罩之间，顶栏要压住前者。
+//
+// 这里要给顶栏一个「刚好在抽屉遮罩之上、又在对话框之下」的层级，原因是
+// 顶栏里挂着竖三点的弹出菜单（mdui-dropdown 的 panel 是 z-index: 2100，
+// 但它活在顶栏这个层叠上下文里，实际高度由顶栏决定）：
+//   · 抽屉（mdui-navigation-drawer）的 --z-index 是 2200，遮罩是 rgba(0,0,0,.4)；
+//     顶栏要是只有 5，抽屉一打开就会把顶栏连同弹出菜单一起压暗 ——
+//     菜单看上去就是「半透明的一层灰」，其实是被遮罩盖住了。
+//   · 对话框是 2300、snackbar 是 2400，顶栏不能越过它们。
+// 所以取 2250：压住抽屉遮罩，又不盖对话框。
 mdui-top-app-bar.app-bar {
-  --z-index: 5;
+  --z-index: 2250;
 }
 
 // 顶栏控件之间的弹性空隙（官方示例用的是内联 flex-grow，这里收成类名）
 .app-bar-spacer {
   flex: 1 1 auto;
+}
+
+// 竖三点的弹出菜单
+// MDUI 把菜单底色写成 rgb(var(--mdui-color-surface-container))，放在组件的
+// :host 里。令牌一旦在某条主题规则下没解析出来（改名、顺序被打乱、主题类
+// 替换的瞬间），整条声明就会失效，底色退回 transparent —— 观感就是
+// 「菜单半透明，透出背后的页面」。作者样式对宿主的优先级高于 :host，
+// 所以这里显式再声明一次，并带上兜底色，令牌失效时也不会透明。
+mdui-menu {
+  background-color: rgb(var(--mdui-color-surface-container, 238 244 253));
+  // 菜单项的状态层同样别用主色（会泛蓝），与侧栏条目保持一致
+  --mdui-comp-ripple-state-layer-color: var(--mdui-color-on-surface);
 }
 
 // 主区：flex 子项，必须允许收缩（min-height: 0），否则内容会被撑高、

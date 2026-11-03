@@ -9,6 +9,13 @@
 - 版式是「**顶栏 + 侧栏 + 内容 + 底栏**」：`<mdui-layout>` 包住 `TopBar` / `mdui-navigation-drawer` / `mdui-layout-main`，底栏在内容之后。**不要**把外壳换回普通的 `flex` 布局——抽屉裸用是 `position: fixed` 且从 y=0 铺满，会盖住顶栏最左的开关按钮。
 - 桌面与窄屏的临界值是 **840px**（`--mdui-breakpoint-md`）：≥840 抽屉推挤内容、<840 覆盖 + 遮罩。**不要**另起一套断点值，`_tokens.scss` 的 `$bp-md: 840px` 是唯一来源。
 - 视觉语言由 MDUI（Material Design 3）决定：圆角、阴影、状态层都用组件自带能力。**本项目没有 Tailwind**，不要引入工具类写法或第二个 UI 框架。
+- **配色是蓝主色 + 冷灰中性色**（`_palette.scss` 静态覆写）。中性色不能只留 MDUI 默认值：它那套 surface 是由默认紫主色推导的，只改 primary 会出现「按钮蓝了、整页还是紫的」。改配色时 primary / surface / on-surface / outline / secondary / tertiary **要一起改**，否则换个组件就冒紫。
+- 抽屉手势的起手区是**左半屏**（`EDGE_START = 12` 到 `EDGE_RATIO = 0.5`）：最外侧留给系统返回 / 浏览器后退手势，右半屏起手的横滑多是误触。**不要**把它收窄成贴边窄带，也不要铺满全宽。
+- 触屏的点按反馈**只由 MDUI 提供**，两处开关不能改回去：
+  - `_base.scss` 里 `html { -webkit-tap-highlight-color: transparent }` —— Chrome / Android 的默认点击高亮是一层半透明蓝，会盖在元素上（还跟着 `border-radius` 变成圆角药丸），与 MDUI 涟漪叠起来就是「点完泛一层蓝」；
+  - `.nav-item` / `mdui-menu` 上 `--mdui-comp-ripple-state-layer-color: var(--mdui-color-on-surface)` —— 该变量默认取**主色**，状态层压在浅色行上同样泛蓝。涟漪本身保留，只把颜色换成中性前景色。
+  - 同理，`.nav-item` 的 `:hover` 底色只写在 `@media (hover: hover)` 里：触屏点一下会留下 sticky `:hover`，看起来像「点完还盖着一层」。
+  - **`a` 的下划线也只在 `@media (hover: hover)` 里给**：触屏残留的 `:hover` 会让导航条目莫名其妙带上下划线（看起来像被选中）。`.nav-item` 另外显式写了 `text-decoration: none` 兜底。
 - 悬浮 / 按下反馈只用 MDUI 的状态层（`--mdui-state-*`）与已有的描边、阴影，**不要**新增大位移、旋转、缩放入场等夸张效果。
 - 动效缓动曲线取自 `_tokens.scss`，**不要**在组件里散写 `cubic-bezier`。
 
@@ -22,7 +29,8 @@
 
 ### 禁止注入式增强（硬性规则）
 
-- **禁止在 `public/` 下放 JS / CSS，再通过 `app/layout.tsx` 的 `<link>` / `<script>` 注入来做功能增强。** 需要交互就写 React 组件 / `src/hooks/`，需要样式就写进 `src/styles/` 的对应分片。`public/` 只放原样发给浏览器的图片（`images/favicon.svg`、`images/friendlinkicon/*`）。
+- **禁止在 `public/` 下放 JS / CSS，再通过 `app/layout.tsx` 的 `<link>` / `<script>` 注入来做功能增强。** 需要交互就写 React 组件 / `src/hooks/`，需要样式就写进 `src/styles/` 的对应分片。`public/` 只放原样发给浏览器的静态资源：图片（`images/favicon.svg`、`images/friendlinkicon/*`）与搜索引擎验证文件（`BingSiteAuth.xml`，必须留在站点根目录，**不要改名或移进子目录**）。
+- 弹出层（`mdui-menu`）的底色在 `_layout.scss` 里显式声明了一次，**不要删**：MDUI 把它写在 `:host` 的 `rgb(var(--mdui-color-surface-container))` 里，令牌一旦解析不出来整条声明就失效、底色退回 `transparent`（观感是「菜单半透明，透出背后的页面」）。作者样式对宿主的优先级高于 `:host`，所以外层补的这一条带兜底色、能兜住这种情况。
 - 为什么（同作者 PidanUI 官网的返工教训：先做了一套 `public/custom/{custom.css,custom.js}` 注入层，随后整层拆回主站代码）：
   - **客户端路由不接管**：注入脚本只在首次加载扫一遍 DOM，站内跳转后新增的页面不会被处理。
   - **绕开样式分层**：`public/` 里的 CSS 不参与 `globals.scss` 的 `@use` 顺序，只能靠 `!important` 与特异性堆叠去压既有规则。
@@ -100,6 +108,18 @@ public/images/                       # favicon 与友链头像（只放图片）
 - 任何滚动监听 / `scrollIntoView` 都要显式指向 `.app-scroll` 或对应的 `scroll-target`（顶栏就是靠 `scroll-target` 拿到主区的），**不要**监听 `window`。
 - 顶栏真实高度由 `AppShell` 的 `ResizeObserver` 写进 `--app-bar-h`：MDUI 组件首次渲染高度是 0，**不要**写死 `64px`。抽屉让位、主区留白都读这个变量。
 - 抽屉不传 `modal` 属性：MDUI 的规则是「屏宽 < 840px 时无视 `modal` 强制遮罩」，正好实现「桌面推挤 / 窄屏覆盖」两套行为。窄屏抽屉要让开顶栏，靠 `_sidebar.scss` 用同权重规则压回 MDUI 的 `!important`。
+- **层叠顺序是一条固定的阶梯**，`_layout.scss` 里顶栏的 `--z-index: 2250` 是刻意插进去的：
+
+  | 层级     | 元素                                                         |
+  | -------- | ------------------------------------------------------------ |
+  | 2000     | MDUI 顶栏默认值                                              |
+  | 2100     | `mdui-dropdown` 的弹出面板（活在顶栏的层叠上下文里，随顶栏） |
+  | 2200     | 抽屉面板与它的遮罩（`rgba(0, 0, 0, .4)`）                    |
+  | **2250** | **本项目顶栏**（压住抽屉遮罩，又不能越过对话框）             |
+  | 2300     | `mdui-dialog`                                                |
+  | 2400     | `mdui-snackbar`                                              |
+
+  顶栏原来是 5，看着没问题，但抽屉一打开，遮罩就把顶栏连同里面的竖三点菜单一起压暗 —— 弹出的菜单看上去像「半透明的一层灰」（其实是被 40% 黑遮罩盖住）。要修只能抬顶栏：弹出面板的 2100 是写死在 shadow DOM 里的，改不动，只能靠它所在的上下文抬高。**别再把它调回小数值**，也别越过 2300。
 
 ## 数据与内容
 
@@ -149,11 +169,13 @@ public/images/                       # favicon 与友链头像（只放图片）
 
 ## 主题与首帧
 
-- 主题只有两态（浅色 / 深色），落地点是 `<html>` 上的 `mdui-theme-light` / `mdui-theme-dark` 类，并同步 `style.colorScheme`（滚动条与原生控件才会一起变）。逻辑在 `src/lib/theme.ts`，storage key 是 `qxg-tools-theme`（**与旧站隔离，不要复用旧 key**）。
-- 首帧防闪靠 `THEME_BOOTSTRAP` 内联脚本在 `<head>` 里同步执行。`app/layout.tsx` 里**生产与 dev 是两条路**：
+- 主题是**三态**：`auto`（跟随系统）/ `light` / `dark`，落地点是 `<html>` 上的 `mdui-theme-auto` / `-light` / `-dark` 类。逻辑在 `src/lib/theme.ts`，storage key 是 `qxg-tools-theme`（**与旧站隔离，不要复用旧 key**），循环顺序 `auto → light → dark → auto`。
+- 「跟随系统」**不写监听器**：MDUI 自己给 `.mdui-theme-auto` 写了 `@media (prefers-color-scheme: dark)` 分支，浏览器换令牌即可。因此 auto 模式下**绝对不能**写内联 `style.colorScheme` —— 内联优先级高于那条媒体查询，会盖掉 MDUI 的 color-scheme，系统切深色时滚动条还是浅色的。浅色 / 深色才写内联 `colorScheme`。
+- 首帧防闪靠 `THEME_BOOTSTRAP` 内联脚本在 `<head>` 里同步执行（读不到值或值非法都落到 `auto`）。`app/layout.tsx` 里**生产与 dev 是两条路**：
   - 生产：静态导出由构建期 SSR 生成 HTML，浏览器解析即执行，零闪；
   - dev：改用 `next/script` 并让 SSR 默认 `mdui-theme-auto`，因为 React 19 会警告并跳过组件里的 `<script>`，dev 下内联会红一片控制台。
 - **不要**把生产改成 `next/script`：它的 `beforeInteractive` 在 App Router 里只是把脚本推进 `self.__next_s` 队列，要等 async chunk 才执行，深色用户会先看到一闪白屏。
+- `ThemeToggle` 的图标表示**当前模式**（`brightness_auto` / `light_mode` / `dark_mode`，取自 `ICONS`），`aria-label` 写「切换主题，当前…」。初始值必须在 `useEffect` 里读（SSR 阶段 `<html>` 上还没有主题类，提前读会 hydration 不匹配）。
 - 生产环境 React 不接管 `<html className>`（否则每次重渲染都会把类冲回 SSR 时的空值），`suppressHydrationWarning` 是刻意加的。
 
 ## 字体与图标
@@ -199,7 +221,8 @@ public/images/                       # favicon 与友链头像（只放图片）
 3. 浏览器实看：`/`、五个工具页、随便一个不存在的 `/tools/xxx/`（应为 404 且保留外壳）。
 4. 宽度 1440 / 840 / 839 / 375 各过一遍：抽屉推挤 ↔ 覆盖切换、窄屏边缘右滑拉出、抽屉内左滑收回、`--app-bar-h` 与实际顶栏高度一致、无横向滚动条。
 5. 内容区滚动时顶栏与侧栏不动；滚动条从顶栏下边缘开始（不是视口顶端）。
-6. 主题切换正常、首帧不闪（深色浏览器刷新一遍），图标没有显示成英文连字名。
+6. 主题三态都能切到（跟随系统 / 浅色 / 深色），切到「跟随系统」后改系统外观页面会跟着变、首帧不闪；图标没有显示成英文连字名。
+   窄屏还要验：左半屏任意位置右滑能拉出抽屉，右半屏横滑不会误触发，屏幕最外侧的返回手势不被抢。
 7. 站内跳转不整页刷新（Network 里不应出现 document 请求），URL 带尾斜杠。
 8. 五个工具各跑一遍正常输入 + 一段非法输入，错误提示可读、复制可用。
 9. 新增 MDUI 标签已同时补进 `MduiProvider` 的 `TAGS` 与 `_fouc.scss` 的 `$mdui-tags`。

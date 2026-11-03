@@ -18,6 +18,8 @@ export const metadata: Metadata = {
     template: `%s — ${SITE.name}`,
   },
   description: SITE.description,
+  // Metadata 的类型是可变数组，SITE 是 as const，所以要展开一份
+  keywords: [...SITE.keywords],
   authors: [{ name: SITE.author }],
   icons: { icon: '/images/favicon.svg' },
   openGraph: {
@@ -25,6 +27,7 @@ export const metadata: Metadata = {
     description: SITE.description,
     type: 'website',
     locale: 'zh_CN',
+    siteName: SITE.name,
   },
 };
 

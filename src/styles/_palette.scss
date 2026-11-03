@@ -1,13 +1,17 @@
 // ============================================================
-// 主题色（蓝色）
+// 主题色（蓝）
 // ------------------------------------------------------------
 // MDUI 的颜色令牌是「r, g, b」三元组，消费时必须写成
 //   color: rgb(var(--mdui-color-primary));
 //   background: rgba(var(--mdui-color-primary), 0.8);
 // 不能写 #hex，否则 rgb() 解析失败、颜色静默失效。
 //
-// 只覆写 primary 一组，其余（surface / outline / on-surface …）
-// 沿用 MDUI 默认值 —— 这样浅色深色两套中性色都不用自己维护。
+// 为什么连中性色一起覆写：
+//   MDUI 默认那套中性色是由它的默认紫主色（#6750A4）推导出来的，
+//   只覆写 primary 时按钮变蓝了，但页面底色、卡片、抽屉仍是
+//   254,247,255 / 243,237,247 这种红通道偏高的值 —— 观感就是
+//   「按钮蓝了，整页还是紫的」。这里把 surface / on-surface / outline
+//   一整套换成同色相（约 220°）的冷灰，主色与底色才对得上。
 //
 // 不调 setColorScheme('#...')：它只能在客户端跑，首帧会先紫后蓝；
 // 而且会重算整套中性色，把结果框的干净灰底一起改掉。
@@ -17,6 +21,7 @@
 .mdui-theme-light,
 .mdui-theme-dark,
 .mdui-theme-auto {
+  // ---- 主色 ----
   // 浅色：#0B57D0 —— Material Blue，白底对比度 5.9:1，正文与按钮都够
   --mdui-color-primary-light: 11, 87, 208;
   --mdui-color-on-primary-light: 255, 255, 255;
@@ -28,4 +33,64 @@
   --mdui-color-on-primary-dark: 6, 46, 111;
   --mdui-color-primary-container-dark: 8, 66, 160;
   --mdui-color-on-primary-container-dark: 211, 227, 253;
+
+  // ---- 次要色 / 第三色：MDUI 默认这两组也是紫的（98,91,113 / 125,82,96），
+  //     虽然当前组件没直接用到，但留着就是「哪天换个组件突然冒紫」的地雷 ----
+  --mdui-color-secondary-light: 74, 92, 120;
+  --mdui-color-on-secondary-light: 255, 255, 255;
+  --mdui-color-secondary-container-light: 214, 227, 244;
+  --mdui-color-on-secondary-container-light: 26, 43, 66;
+  --mdui-color-tertiary-light: 62, 106, 140;
+  --mdui-color-on-tertiary-light: 255, 255, 255;
+  --mdui-color-tertiary-container-light: 205, 229, 247;
+  --mdui-color-on-tertiary-container-light: 14, 44, 66;
+
+  --mdui-color-secondary-dark: 186, 201, 220;
+  --mdui-color-on-secondary-dark: 36, 47, 62;
+  --mdui-color-secondary-container-dark: 53, 66, 84;
+  --mdui-color-on-secondary-container-dark: 214, 227, 244;
+  --mdui-color-tertiary-dark: 168, 202, 226;
+  --mdui-color-on-tertiary-dark: 20, 40, 55;
+  --mdui-color-tertiary-container-dark: 42, 68, 90;
+  --mdui-color-on-tertiary-container-dark: 205, 229, 247;
+
+  // ---- 中性色（浅色）：冷灰，带一点蓝而不是紫 ----
+  --mdui-color-background-light: 250, 252, 255;
+  --mdui-color-on-background-light: 22, 28, 42;
+  --mdui-color-surface-light: 250, 252, 255;
+  --mdui-color-on-surface-light: 22, 28, 42;
+  --mdui-color-surface-variant-light: 223, 232, 246;
+  --mdui-color-on-surface-variant-light: 68, 82, 104;
+  --mdui-color-surface-dim-light: 214, 224, 240;
+  --mdui-color-surface-bright-light: 250, 252, 255;
+  --mdui-color-surface-container-lowest-light: 255, 255, 255;
+  --mdui-color-surface-container-low-light: 245, 249, 255;
+  --mdui-color-surface-container-light: 238, 244, 253;
+  --mdui-color-surface-container-high-light: 231, 238, 251;
+  --mdui-color-surface-container-highest-light: 224, 232, 248;
+  --mdui-color-surface-tint-color-light: 11, 87, 208;
+  --mdui-color-outline-light: 116, 130, 152;
+  --mdui-color-outline-variant-light: 197, 210, 229;
+  --mdui-color-inverse-surface-light: 40, 48, 62;
+  --mdui-color-inverse-on-surface-light: 238, 243, 250;
+
+  // ---- 中性色（深色）：同一色相压暗，不用纯黑，避免与蓝色脱节 ----
+  --mdui-color-background-dark: 13, 17, 25;
+  --mdui-color-on-background-dark: 226, 233, 245;
+  --mdui-color-surface-dark: 13, 17, 25;
+  --mdui-color-on-surface-dark: 226, 233, 245;
+  --mdui-color-surface-variant-dark: 61, 72, 90;
+  --mdui-color-on-surface-variant-dark: 189, 201, 219;
+  --mdui-color-surface-dim-dark: 13, 17, 25;
+  --mdui-color-surface-bright-dark: 52, 60, 76;
+  --mdui-color-surface-container-lowest-dark: 9, 12, 18;
+  --mdui-color-surface-container-low-dark: 21, 26, 36;
+  --mdui-color-surface-container-dark: 27, 33, 44;
+  --mdui-color-surface-container-high-dark: 35, 42, 55;
+  --mdui-color-surface-container-highest-dark: 44, 53, 68;
+  --mdui-color-surface-tint-color-dark: 168, 199, 250;
+  --mdui-color-outline-dark: 137, 150, 169;
+  --mdui-color-outline-variant-dark: 61, 72, 90;
+  --mdui-color-inverse-surface-dark: 226, 233, 245;
+  --mdui-color-inverse-on-surface-dark: 27, 33, 44;
 }
