@@ -40,6 +40,18 @@ mdui-top-app-bar.app-bar {
   flex: 1 1 auto;
 }
 
+// 竖三点的弹出菜单
+// MDUI 把菜单底色写成 rgb(var(--mdui-color-surface-container))，放在组件的
+// :host 里。令牌一旦在某条主题规则下没解析出来（改名、顺序被打乱、主题类
+// 替换的瞬间），整条声明就会失效，底色退回 transparent —— 观感就是
+// 「菜单半透明，透出背后的页面」。作者样式对宿主的优先级高于 :host，
+// 所以这里显式再声明一次，并带上兜底色，令牌失效时也不会透明。
+mdui-menu {
+  background-color: rgb(var(--mdui-color-surface-container, 238 244 253));
+  // 菜单项的状态层同样别用主色（会泛蓝），与侧栏条目保持一致
+  --mdui-comp-ripple-state-layer-color: var(--mdui-color-on-surface);
+}
+
 // 主区：flex 子项，必须允许收缩（min-height: 0），否则内容会被撑高、
 // 由外层滚动，上面那套「主区独立滚动」就失效了
 .app-main {

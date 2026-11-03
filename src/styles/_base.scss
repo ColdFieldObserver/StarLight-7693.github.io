@@ -22,6 +22,11 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   height: 100%;
+  // 关掉 Chrome / Android 的默认点击高亮。
+  // 它是一层半透明的蓝色，会在任何被点到的元素上盖一下，和 MDUI 自己的
+  // 涟漪叠在一起就是「点完泛一层浅蓝」。站内的按压反馈统一交给 MDUI
+  // （mdui-ripple / 状态层），这里必须把它去掉。
+  -webkit-tap-highlight-color: transparent;
 }
 
 // 字体栈（与冷域观者站保持同一套）
@@ -53,8 +58,12 @@ a {
   text-decoration: none;
   transition: color $transition;
 
-  &:hover {
-    text-decoration: underline;
+  // 下划线只在真有悬浮能力的设备上给：触屏点一下之后 :hover 会一直留着，
+  // 条目就会莫名其妙带着下划线，看起来像是被选中了。
+  @media (hover: hover) {
+    &:hover {
+      text-decoration: underline;
+    }
   }
 
   &:focus-visible {
