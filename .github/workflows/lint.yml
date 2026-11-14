@@ -1,18 +1,15 @@
 name: Lint & Format
 
-# 代码风格守门：oxlint（可能出错的地方）+ Prettier（排版）+ tsc（类型）
+# 质量门禁：Prettier（排版）+ oxlint（可能出错的地方）+ tsc（类型）+ 构建
 #
-# 三个触发来源：
-#   pull_request —— 所有 PR（含 fork 发起的）都跑一次
-#   push         —— 分支推送也跑，但只要不是 main；main 由 deploy.yml 以
-#                   workflow_call 调用，避免同一次推送跑两遍
-#   workflow_call —— 供 deploy.yml 复用，部署前先过这一关
+# 部署已迁到 Cloudflare Workers：仓库不再保留 GitHub Pages 部署流水线，
+# 也不再需要 pages: write / id-token: write 权限与 github-pages environment。
+# 生产与预览部署由 Cloudflare 侧 Workers Builds 的 Git 集成自动执行，
+# 所以这里除了风格检查，还要自己把 next build 跑一遍：检查不过就不该发版。
 on:
   push:
-    # 注意：main 的检查交给 deploy.yml 里 needs 的关系，这里不要重复声明
-    branches-ignore: ['main']
   pull_request:
-  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,7 +20,7 @@ concurrency:
 
 jobs:
   quality:
-    name: oxlint + Prettier + tsc
+    name: Prettier + oxlint + tsc + Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -45,7 +42,10 @@ jobs:
       - name: oxlint
         run: pnpm run lint
 
-      # 类型检查与 build 的差异：这条只跑 tsc，几秒出结果，
-      # 不用等整次静态导出就能看到类型错误
+      # 类型检查几秒出结果，不用等整次静态导出就能看到类型错误
       - name: TypeScript (tsc --noEmit)
         run: pnpm run typecheck
+
+      # 同步字体 → next build → 产物校验：路由漏生成 / 字体漏同步都会直接失败
+      - name: Build (sync-fonts + next build + verify-output → out/)
+        run: pnpm run build

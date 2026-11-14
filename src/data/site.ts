@@ -54,7 +54,7 @@ export const SITE = {
   ],
   /** 作者 */
   author: '栖小光',
-  /** 作者主页（GitHub Pages 个人站） */
+  /** 作者主页 */
   authorUrl: 'https://github.com/StarLight-7693',
   /** 许可 */
   license: 'MIT',
@@ -62,8 +62,8 @@ export const SITE = {
   tech: ['Next.js', 'React', 'TypeScript', 'SCSS', 'MDUI'],
   /** 开发域名 */
   url: 'https://www.skystarlight.top',
-  /** 仓库域名 */
-  repoUrl: 'https://github.com/StarLight-7693/StarLight-7693.github.io',
+  /** 仓库地址（远端仓库迁移后的目标地址） */
+  repoUrl: 'https://github.com/PidanEggyTeam/StarLight-7693-Tools-Website',
 } as const;
 
 /** 站内路由帮助函数：trailingSlash 模式下必须带尾斜杠 */

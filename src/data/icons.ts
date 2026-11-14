@@ -1,7 +1,7 @@
 /**
  * 图标名集中处。
  *
- * 全部取自 Material Icons 的连字名（snake_case），字体走 jsDelivr CDN。
+ * 全部取自 Material Icons 的连字名（snake_case），字体由 scripts/sync-fonts.mjs 随产物自包含。
  * 改图标只改这里，不要在组件里散写字符串 —— 字体缺某个连字时，
  * 页面上会显示该英文名本身，集中管理便于一次性排查。
  */

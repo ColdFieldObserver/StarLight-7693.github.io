@@ -12,5 +12,5 @@
       }
     }
   ],
-  "ignorePatterns": ["out/**", ".next/**"]
+  "ignorePatterns": ["out/**", ".next/**", ".wrangler/**"]
 }

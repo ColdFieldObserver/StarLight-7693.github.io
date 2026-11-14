@@ -1,17 +1,17 @@
 <div align="center">
 
-# StarLight-7693.github.io
+# StarLight-7693-Tools-Website
 
-![Last Commit](https://img.shields.io/github/last-commit/StarLight-7693/StarLight-7693.github.io?label=Last%20Commit)
+![Last Commit](https://img.shields.io/github/last-commit/PidanEggyTeam/StarLight-7693-Tools-Website?label=Last%20Commit)
 [![Next.js](https://img.shields.io/badge/Next.js-16.4.3-000000?logo=Next.js&logoColor=white)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.3.1-61DAFB?logo=React&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-7.0.2-3178C6?logo=TypeScript&logoColor=white)](https://www.typescriptlang.org/)
 [![SCSS](https://img.shields.io/badge/SCSS-sass%201.101-CF649A?logo=sass&logoColor=white)](https://sass-lang.com/)
 [![MDUI](https://img.shields.io/badge/MDUI-2.1.5-757575?logo=materialdesign&logoColor=white)](https://www.mdui.org/)
 ![License](https://img.shields.io/badge/License-MIT-blue)
-[![GitHub](https://img.shields.io/badge/GitHub-StarLight--7693-blue?logo=github&logoColor=F5F5F5)](https://github.com/StarLight-7693)
+[![GitHub](https://img.shields.io/badge/GitHub-PidanEggyTeam-blue?logo=github&logoColor=F5F5F5)](https://github.com/PidanEggyTeam)
 
-栖小光的工具站：一堆纯前端小工具，输入的内容不上传服务器。使用 Next.js 16 + React 19 + TypeScript + SCSS + MDUI 构建，`output: 'export'` 静态生成（SSG）后部署到 GitHub Pages，线上地址 <https://www.skystarlight.top>。
+栖小光的工具站：一堆纯前端小工具，输入的内容不上传服务器。使用 Next.js 16 + React 19 + TypeScript + SCSS + MDUI 构建，`output: 'export'` 静态生成（SSG）后以 assets-only Worker 部署到 **Cloudflare Workers Static Assets**，线上地址 <https://www.skystarlight.top>。
 
 </div>
 
@@ -43,6 +43,7 @@
 - [MDUI 2](https://www.mdui.org/)（Material Design 3 的 Web Components 组件库）
 - [SCSS](https://sass-lang.com/)（按职责分片，无 CSS 框架）
 - [oxlint](https://oxc.rs/) + [Prettier](https://prettier.io/)（代码检查与排版）
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/static-assets/)（Static Assets 托管 + Worker Previews 独立预览）
 
 ## 构建步骤
 
@@ -50,7 +51,7 @@
 2. 安装 `pnpm`：`npm install -g pnpm`（`pnpm --version` 可验证）
 3. 在项目文件夹下执行 `pnpm install`
 4. `pnpm dev` 启动开发服务器（默认 `http://localhost:3000`）
-5. `pnpm build` 生成静态产物，输出在 **`out/`**
+5. `pnpm build` 先同步字体、再 `next build` 并跑产物校验，输出在 **`out/`**（Cloudflare Workers 直接托管这个目录）
 
 提交前这几条都要绿：
 
@@ -58,7 +59,7 @@
 pnpm typecheck     # tsc --noEmit
 pnpm lint          # oxlint
 pnpm format:check  # prettier --check
-pnpm build         # next build，产物在 out/
+pnpm build         # 同步字体 → next build → 产物校验，产物在 out/
 ```
 
 > [!TIP]
@@ -66,13 +67,31 @@ pnpm build         # next build，产物在 out/
 
 ## 字体与图标
 
-三类字体全部走 jsDelivr CDN，仓库不保留字体文件：**HarmonyOS Sans SC**（界面，400 / 500 / 700 按 unicode-range 分片）、**Cascadia Code**（代码与输入输出）、**Material Icons**（图标连字）。图标名集中在 `src/data/icons.ts`，站点不内置任何图标文件。
+三类字体全部**随产物自包含**，字体加载不再请求任何 CDN：构建期由 `scripts/sync-fonts.mjs` 从本地 npm 包同步到 `public/fonts/`，`next build` 原样复制进 `out/fonts/`，Cloudflare Workers 直接托管该目录。
+
+- **HarmonyOS Sans SC**（界面）：400 / 500 / 700 三档，按 unicode-range 分片，浏览器只下当前页面用到的片；
+- **Cascadia Code**（代码与输入输出）：400 / 700 两档，补齐 Windows 之外平台的等宽字体；
+- **Material Icons**（图标连字）：单独 preload + `font-display: block`，避免首屏先闪出 `more_vert` 这类英文连字名。
+
+`public/fonts/` 是生成物、已进 `.gitignore`，仓库不提交字体二进制；`scripts/verify-output.mjs` 每次构建后断言页面齐全、字体分片齐全、HTML / CSS 中无字体 CDN 引用。图标名集中在 `src/data/icons.ts`，站点不内置任何图标文件。
 
 ## 部署方式
 
-本网站部署于 **GitHub Pages**，通过静态托管对外提供服务。推送到 `main` 后由 `.github/workflows/deploy.yml` 自动执行代码检查（`lint.yml`）→ `pnpm build` → 上传 `out/` → 部署 Pages；检查不通过就不会发布。站点没有后端，所有内容以静态资源形式存在，更新时需重新构建并推送。
+本网站以 **assets-only Worker** 部署于 **Cloudflare Workers Static Assets**，站点没有后端，所有内容以静态资源形式存在。仓库里**没有 GitHub Pages 部署流水线**（`.github/workflows/deploy.yml` 及 Pages 专属权限 / environment 已删除）；部署由 Cloudflare 侧一次性设置好 Git 集成（Workers Builds）后自动执行：
 
-仓库里不需要 `public/.nojekyll` 与 `public/CNAME`：这两个文件只对「从分支直接发布」的 Pages 生效。本站走自定义 GitHub Actions 工作流发布，域名在仓库 Settings → Pages 里配。
+| 设置项   | 值                                                                                                  |
+| -------- | --------------------------------------------------------------------------------------------------- |
+| 生产分支 | `main`（推送即自动构建部署）                                                                        |
+| 构建命令 | `pnpm build`（同步字体 → `next build` → 产物校验 → `out/`）                                         |
+| 部署命令 | `npx wrangler deploy`                                                                               |
+| 产物目录 | 由 `wrangler.jsonc` 的 `assets.directory = ./out` 指定                                              |
+| 预览部署 | 在 Cloudflare 开启非生产分支 / PR 预览；`previews: {}` 声明启用 Worker Previews，与生产 Worker 隔离 |
+| 运行环境 | Node 22 + pnpm（`packageManager` 指定版本）                                                         |
+
+- **兼容 Next.js 的关键点**：`output: 'export'` 是纯静态导出，没有 Node 服务端，所以不需要 `@opennextjs/cloudflare`，Worker 也没有 `main` 字段，只做静态资源分发。`trailingSlash: true` 产出目录式 `xxx/index.html`，配合 `html_handling: auto-trailing-slash` 命中站内带尾斜杠的链接；`images.unoptimized` 对应无图片优化服务，`404.html` 对应 `not_found_handling: 404-page`。
+- **CI 只保留 `.github/workflows/lint.yml`**：`format:check` → `lint` → `typecheck` → `build`（含字体同步与产物校验），不通过就不该发版；仓库不再需要 `pages: write` / `id-token: write` 权限，也不需要任何 `CLOUDFLARE_*` secrets。
+- **独立预览环境**：`wrangler.jsonc` 的 `previews: {}` 启用 Worker Previews，非生产分支 / PR 由 Cloudflare 生成独立预览 URL，与生产 Worker 隔离；本地可用 `pnpm deploy:preview`（`wrangler preview`）创建预览部署，或用 `pnpm preview`（`wrangler dev`）按线上规则验收。
+- 自定义域 `www.skystarlight.top` 在 Cloudflare 侧绑定；仓库里不需要 `public/.nojekyll` 与 `public/CNAME`，这两个文件只对「从分支直接发布」的 GitHub Pages 生效。
 
 ## 参与开发
 

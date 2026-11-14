@@ -1,4 +1,6 @@
 out/
 .next/
+.wrangler/
+public/fonts/
 pnpm-lock.yaml
 next-env.d.ts

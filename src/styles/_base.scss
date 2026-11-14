@@ -30,7 +30,7 @@ html {
 }
 
 // 字体栈（与冷域观者站保持同一套）
-// UI：HarmonyOS Sans SC（jsDelivr 分片 woff2，见 _fonts.scss），
+// UI：HarmonyOS Sans SC（构建期同步到 /fonts/ 的分片 woff2，见 _fonts.scss），
 //     后面的 MiSans / PingFang / 雅黑 是字体没到或加载失败时的接力。
 // 代码：Cascadia Code，末尾挂中文无衬线——否则代码块里的中文会掉回宋体。
 :root {

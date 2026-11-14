@@ -13,3 +13,7 @@ Thumbs.db
 !.vscode/extensions.json
 next-env.d.ts
 tsconfig.tsbuildinfo
+# Cloudflare Workers 本地缓存（wrangler dev / deploy / preview 生成）
+.wrangler/
+# 字体由 scripts/sync-fonts.mjs 构建期生成，不提交字体二进制
+public/fonts/

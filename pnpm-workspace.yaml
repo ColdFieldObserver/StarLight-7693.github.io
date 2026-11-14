@@ -2,3 +2,7 @@
 allowBuilds:
   # sass 的可选依赖，用于 watch 模式的文件监听
   '@parcel/watcher': true
+  # wrangler 依赖的 Workers 运行时二进制，安装脚本要放行
+  workerd: true
+  # wrangler 打包链路用到的 esbuild 二进制
+  esbuild: true

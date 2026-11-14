@@ -55,36 +55,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     // dev：默认 mdui-theme-auto，让 MDUI 自己的 prefers-color-scheme 规则兜首帧。
     <html lang="zh-CN" className={IS_PROD ? undefined : 'mdui-theme-auto'} suppressHydrationWarning>
       <head>
-        {/* 图标字体走 jsDelivr：预连接省掉 DNS/TCP/TLS，preload 让图标尽早成型 */}
-        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
+        {/* 三类字体由 scripts/sync-fonts.mjs 从本地 npm 包同步到 public/fonts/，
+            随产物自包含，线上不产生任何第三方字体请求 */}
+        <link rel="stylesheet" href="/fonts/fonts.css" />
+
+        {/* 图标字体单独 preload：字形没到会先渲染成 "more_vert" 这类英文连字名，
+            配合 fonts.css 里的 font-display: block 留白，避免首屏闪字 */}
         <link
           rel="preload"
           as="font"
           type="font/woff2"
-          href="https://cdn.jsdelivr.net/npm/material-icons@1.13.14/iconfont/material-icons.woff2"
+          href="/fonts/material-icons.woff2"
           crossOrigin="anonymous"
-        />
-
-        {/* 界面字体：HarmonyOS Sans SC（与冷域观者站同一套，按 unicode-range 分片，
-            浏览器只取当前页面用得到的片） */}
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/harmonyos-sans-sc-webfont-splitted@1.1.0/dist/Regular.css"
-        />
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/harmonyos-sans-sc-webfont-splitted@1.1.0/dist/Medium.css"
-        />
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/harmonyos-sans-sc-webfont-splitted@1.1.0/dist/Bold.css"
-        />
-
-        {/* 代码字体：Cascadia Code 只有 Windows 11 自带，其它设备必须靠 webfont，
-            否则会掉到系统 monospace，中英混排的行高直接崩 */}
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@5.2.3/index.min.css"
         />
 
         {/* 首帧落地主题，避免深色用户先看到白屏（两条路径的原因见 IS_PROD 注释） */}

@@ -1,6 +1,6 @@
 # Copilot Instructions
 
-> 本文件仅适用于 **StarLight-7693-Tools**（栖小光的工具站，仓库 `StarLight-7693/StarLight-7693.github.io`），请勿套用到同作者的其他仓库（PidanUI-Website、coldfieldobserver.github.io、StarLight-7693-New 等）。
+> 本文件仅适用于 **StarLight-7693-Tools**（栖小光的工具站，仓库 `PidanEggyTeam/StarLight-7693-Tools-Website`），请勿套用到同作者的其他仓库（PidanUI-Website、coldfieldobserver.github.io、StarLight-7693-New 等）。
 
 ## 项目指南
 
@@ -29,7 +29,7 @@
 
 ### 禁止注入式增强（硬性规则）
 
-- **禁止在 `public/` 下放 JS / CSS，再通过 `app/layout.tsx` 的 `<link>` / `<script>` 注入来做功能增强。** 需要交互就写 React 组件 / `src/hooks/`，需要样式就写进 `src/styles/` 的对应分片。`public/` 只放原样发给浏览器的静态资源：图片（`images/favicon.svg`、`images/friendlinkicon/*`）与搜索引擎验证文件（`BingSiteAuth.xml`，必须留在站点根目录，**不要改名或移进子目录**）。
+- **禁止在 `public/` 下放 JS / CSS，再通过 `app/layout.tsx` 的 `<link>` / `<script>` 注入来做功能增强。**（例外：`public/fonts/fonts.css` 由 `scripts/sync-fonts.mjs` 生成，只含 `@font-face` 声明、无脚本逻辑，属于静态资源加载；不提交仓库且受 `scripts/verify-output.mjs` 断言覆盖。） 需要交互就写 React 组件 / `src/hooks/`，需要样式就写进 `src/styles/` 的对应分片。`public/` 只放原样发给浏览器的静态资源：图片（`images/favicon.svg`、`images/friendlinkicon/*`）与搜索引擎验证文件（`BingSiteAuth.xml`，必须留在站点根目录，**不要改名或移进子目录**）。
 - 弹出层（`mdui-menu`）的底色在 `_layout.scss` 里显式声明了一次，**不要删**：MDUI 把它写在 `:host` 的 `rgb(var(--mdui-color-surface-container))` 里，令牌一旦解析不出来整条声明就失效、底色退回 `transparent`（观感是「菜单半透明，透出背后的页面」）。作者样式对宿主的优先级高于 `:host`，所以外层补的这一条带兜底色、能兜住这种情况。
 - 为什么（同作者 PidanUI 官网的返工教训：先做了一套 `public/custom/{custom.css,custom.js}` 注入层，随后整层拆回主站代码）：
   - **客户端路由不接管**：注入脚本只在首次加载扫一遍 DOM，站内跳转后新增的页面不会被处理。
@@ -47,20 +47,23 @@
 
 ## 项目概况
 
-| 项       | 值                                                                                              |
-| -------- | ----------------------------------------------------------------------------------------------- |
-| 定位     | 纯前端在线工具集合站，`output: 'export'` 静态导出（SSG），部署于 GitHub Pages                   |
-| 线上地址 | https://www.skystarlight.top（`trailingSlash: true`，站内 URL 一律带尾斜杠）                    |
-| 技术栈   | Next.js `16.4.3`（App Router + Turbopack）+ React `19.3` + TypeScript `7.0.2` + SCSS + MDUI `2` |
-| 包管理器 | pnpm（`packageManager: pnpm@12.11.2`），CI 用 `pnpm install --frozen-lockfile`                  |
-| 发布流程 | 推送到 `main` → `.github/workflows/deploy.yml` 构建并部署 `out/`                                |
-| 许可证   | MIT                                                                                             |
+| 项       | 值                                                                                                |
+| -------- | ------------------------------------------------------------------------------------------------- |
+| 定位     | 纯前端在线工具集合站，`output: 'export'` 静态导出（SSG），部署于 Cloudflare Workers Static Assets |
+| 线上地址 | https://www.skystarlight.top（`trailingSlash: true`，站内 URL 一律带尾斜杠）                      |
+| 技术栈   | Next.js `16.4.3`（App Router + Turbopack）+ React `19.3` + TypeScript `7.0.2` + SCSS + MDUI `2`   |
+| 包管理器 | pnpm（`packageManager: pnpm@12.11.2`），CI 用 `pnpm install --frozen-lockfile`                    |
+| 发布流程 | 推送到 `main` → Cloudflare Workers Builds 自动构建部署 `out/`；非生产分支 / PR 生成独立预览       |
+| 许可证   | MIT                                                                                               |
 
 ## 常用命令
 
 ```bash
-pnpm dev           # 本地开发（默认 http://localhost:3000）
-pnpm build         # 生产构建 = next build，产物在 out/
+pnpm dev           # 本地开发（先同步字体，默认 http://localhost:3000）
+pnpm build         # 同步字体 → next build → 产物校验，产物在 out/
+pnpm preview       # wrangler dev，按 Workers 线上规则验收 out/
+pnpm deploy        # pnpm build && wrangler deploy（手动发版）
+pnpm deploy:preview # pnpm build && wrangler preview（独立预览部署）
 pnpm typecheck     # tsc --noEmit
 pnpm lint          # oxlint（不是 ESLint）
 pnpm format:check  # prettier --check
@@ -91,6 +94,7 @@ src/
 ├─ styles/                           # globals.scss + 9 个分片（见「样式约定」）
 └─ types/mdui.d.ts                   # MDUI 的 JSX 类型声明
 public/images/                       # favicon 与友链头像（只放图片）
+public/fonts/                        # 构建期生成的自包含字体（不提交仓库）
 ```
 
 ## 路由与页面机制
@@ -180,11 +184,13 @@ public/images/                       # favicon 与友链头像（只放图片）
 
 ## 字体与图标
 
-三类字体全部走 jsDelivr CDN，**仓库不保留任何字体文件**（见 `_fonts.scss`）：
+三类字体全部**随产物自包含**，字体加载不再请求任何 CDN：构建期由 `scripts/sync-fonts.mjs` 从本地 npm 包同步到 `public/fonts/`，`next build` 原样复制进 `out/fonts/`，Workers 直接托管该目录。
 
-- **HarmonyOS Sans SC**（界面）—— 400 / 500 / 700 三个字重，unicode-range 分片，`<link>` 在 `app/layout.tsx`；
-- **Cascadia Code**（代码 / 输入输出）—— Windows 自带，其余平台必须靠 webfont 兜底，否则会掉到 `monospace` 导致中文行高错乱；
-- **Material Icons**（图标）—— `@font-face` 单独声明并配 `font-display: block`，避免字形未到时先渲染成 `more_vert` 这类英文单词。
+- **HarmonyOS Sans SC**（界面）—— 400 / 500 / 700 三档，unicode-range 分片；
+- **Cascadia Code**（代码 / 输入输出）—— 400 / 700 两档，补齐 Windows 之外平台的等宽字体；
+- **Material Icons**（图标）—— 连字字体，`@font-face` 配 `font-display: block`，`app/layout.tsx` 单独 preload。
+
+`public/fonts/` 是生成物、已进 `.gitignore`，仓库不提交字体二进制；`fonts.css` 只含 `@font-face` 声明，属于静态资源加载，不属于「禁止注入式增强」那条规则。`scripts/verify-output.mjs` 每次构建后断言页面齐全、字体分片数量、HTML / CSS 中无字体 CDN 引用。
 
 图标是 `<mdui-icon name={ICONS.xxx}>` 的连字字体，**不是**内联 SVG，也没有 Iconify。首屏会有一次中文 FOUT，这是分片中文字体的固有代价，**不要**为了消闪把整页藏起来。
 
@@ -200,18 +206,26 @@ public/images/                       # favicon 与友链头像（只放图片）
 - `tsconfig.json` 开了 `strict` + `noUnusedLocals` + `noUnusedParameters` + `isolatedModules`，路径别名 `@/*` → `src/*`。**不要**为了图省事关掉这几项。
 - **TypeScript 7 是原生（Go）实现，包里只有 `tsc` 可执行文件，不提供旧版编译器 API**（`require('typescript').createProgram` 为 `undefined`）。本项目类型检查全走命令行（`tsc --noEmit` 与 `next build` 的自检阶段），因此不受影响；但**接任何依赖 TS API 的工具前先想清楚**——例如 typescript-eslint 会直接拒绝 TS 7，官方做法是用 `@typescript/typescript6` 别名共存。
 - **lint 用 oxlint，不是 ESLint**（配置见 `.oxlintrc.json`，只开 `react/rules-of-hooks` 与 `react/only-export-components`）。不要新增 `eslint.config.*` 制造第二套规则。
-- 排版用 Prettier（`.prettierrc`：单引号 / `printWidth: 100` / `trailingComma: all` / 分号必写）。`out/`、`.next/`、`pnpm-lock.yaml`、`next-env.d.ts` 在 `.prettierignore` 里。
+- 排版用 Prettier（`.prettierrc`：单引号 / `printWidth: 100` / `trailingComma: all` / 分号必写）。`out/`、`.next/`、`.wrangler/`、`public/fonts/`、`pnpm-lock.yaml`、`next-env.d.ts` 在 `.prettierignore` 里。
 - `next-env.d.ts` 由 Next 生成、已在 `.gitignore`，**不要手动编辑或提交**。
 - 需要 `'use client'` 的组件只有两类：用了 hooks / 事件的，或直接渲染 MDUI 标签的（`AppShell`、各 `Tool*`、`MduiTextField`）。页面级 `page.tsx` 保持 Server Component，不要整页加 `'use client'`。
+
+## 部署（Cloudflare Workers）
+
+- 站点是 `output: 'export'` 的纯静态产物，没有 Node 服务端，所以**不需要 `@opennextjs/cloudflare`**；`wrangler.jsonc` 是 assets-only Worker（无 `main`），`assets.directory = ./out`，请求不计费。
+- `trailingSlash: true` 产出目录式 `xxx/index.html`，配 `html_handling: auto-trailing-slash` 让站内带尾斜杠的链接命中；`404.html` 配 `not_found_handling: 404-page` 兜底；`images.unoptimized` 对应无图片优化服务。
+- 生产与预览部署由 Cloudflare 侧 Workers Builds 的 Git 集成执行：生产分支 `main`、构建命令 `pnpm build`、部署命令 `npx wrangler deploy`；在 Cloudflare 开启非生产分支 / PR 预览后，每个非生产变更都有独立预览 URL。`wrangler.jsonc` 的 `previews: {}` 声明启用 Worker Previews，预览实例与生产 Worker 隔离。
+- 本地兜底：`pnpm preview`（`wrangler dev`）按线上规则验收，`pnpm deploy:preview`（`wrangler preview`）创建预览部署，`pnpm deploy` 手动发版。
+- 仓库里**没有** `.github/workflows/deploy.yml`，也没有 Pages 权限 / `github-pages` environment / `.nojekyll` / `CNAME`；自定义域在 Cloudflare 侧绑定。
 
 ## Git 与协作
 
 - 分支命名 `feat/<简述>` / `fix/<简述>` / `docs/<简述>`；同一主题的改动留在同一分支。
 - 提交信息用中文，`feat:` / `fix:` / `style:` / `refactor:` / `chore:` / `docs:` 前缀；正文说清「为什么这么做、影响面是什么」，不要复述 diff。
 - **每个提交都要能独立 `pnpm build` 通过**（`output: 'export'` 下任何路由缺失都会让构建失败）。
-- 依赖变更必须同时提交 `pnpm-lock.yaml`（CI 用 `--frozen-lockfile`）；新增需要构建脚本的依赖要在 `pnpm-workspace.yaml` 的 `allowBuilds` 里放行（当前只有 `@parcel/watcher`）。
-- **CI 顺序：`.github/workflows/lint.yml`（Prettier + oxlint + tsc）先跑，`deploy.yml` 的 `build` 用 `needs: quality` 卡在它后面**——检查不过就不构建、不部署。`lint.yml` 以可复用工作流（`workflow_call`）被调用，所以 `push` 触发里要排除 `main`，否则同一次推送会跑两遍。
-- 不要提交产物与临时文件：`out/`、`.next/`、`tsconfig.tsbuildinfo`、`next-env.d.ts`、`*.log`。
+- 依赖变更必须同时提交 `pnpm-lock.yaml`（CI 用 `--frozen-lockfile`）；新增需要构建脚本的依赖要在 `pnpm-workspace.yaml` 的 `allowBuilds` 里放行（`@parcel/watcher`、`workerd`、`esbuild`）。
+- **CI 只剩 `.github/workflows/lint.yml`**：所有 `push` / `pull_request` / `workflow_dispatch` 都跑 `format:check` → `lint` → `typecheck` → `build`（含字体同步与产物校验）。部署已迁到 Cloudflare Workers Builds 的 Git 集成，仓库不再有 `deploy.yml`、Pages 权限 / `github-pages` environment，也不需要 `CLOUDFLARE_*` secrets；`lint.yml` 不再需要 `workflow_call` / `branches-ignore: ['main']`。
+- 不要提交产物与临时文件：`out/`、`.next/`、`public/fonts/`、`.wrangler/`、`tsconfig.tsbuildinfo`、`next-env.d.ts`、`*.log`。
 - 视觉改动请附截图（浅色 + 深色、桌面 + ≤840px 各一组）。
 
 ## 提交前自检清单
@@ -226,4 +240,5 @@ public/images/                       # favicon 与友链头像（只放图片）
 7. 站内跳转不整页刷新（Network 里不应出现 document 请求），URL 带尾斜杠。
 8. 五个工具各跑一遍正常输入 + 一段非法输入，错误提示可读、复制可用。
 9. 新增 MDUI 标签已同时补进 `MduiProvider` 的 `TAGS` 与 `_fouc.scss` 的 `$mdui-tags`。
-10. 没有提交 `out/`、`.next/`、`tsconfig.tsbuildinfo` 或临时文件。
+10. 没有提交 `out/`、`.next/`、`public/fonts/`、`.wrangler/`、`tsconfig.tsbuildinfo` 或临时文件。
+11. `out/fonts/` 里三类字体齐全，HTML / CSS 中不出现字体 CDN 引用（`scripts/verify-output.mjs` 已断言）。

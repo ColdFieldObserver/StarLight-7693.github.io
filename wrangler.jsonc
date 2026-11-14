@@ -1,0 +1,24 @@
+{
+  // assets-only Worker：没有 main 字段，纯静态资源，请求不计费。
+  // Next.js 16 用 output: 'export' 把整站静态导出到 out/，没有 Node 服务端，
+  // 因此不需要 @opennextjs/cloudflare，直接把 out/ 交给 Workers Static Assets。
+  // 部署不经过 GitHub Actions：在 Cloudflare 侧把仓库连上 Git（Workers Builds）
+  // 并按下表设置后，main 推送自动部署，非生产分支 / PR 自动生成独立预览：
+  //   build command  = pnpm build       （next build → out/）
+  //   deploy command = npx wrangler deploy
+  // previews 声明启用 Worker Previews，预览实例与生产 Worker 相互隔离；
+  // 非生产改动可用 wrangler preview 或 Cloudflare 非生产分支预览独立验证，不影响线上。
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "starlight-7693-tools",
+  "compatibility_date": "2026-11-14",
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "./out",
+    // trailingSlash: true 的产物是「目录式 xxx/index.html」+ 根 404.html：
+    // auto-trailing-slash 让带尾斜杠的站内链接（toolPath() 统一生成）命中 index.html，
+    // 不带尾斜杠的请求补上尾斜杠；not_found_handling 直接用预渲染的 404.html 兜底。
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+  },
+  "previews": {},
+}
