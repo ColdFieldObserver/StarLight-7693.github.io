@@ -15,7 +15,7 @@ interface FriendLink {
 const FRIEND_LINKS: FriendLink[] = [
   {
     name: '冷域观者的个人网站',
-    url: 'https://coldfieldobserver.github.io',
+    url: 'https://coldfield.skystarlight.top/',
     desc: '冷域观者的个人站点',
     icon: '/images/friendlinkicon/coldfieldobserver.webp',
   },
